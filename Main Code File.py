@@ -203,6 +203,3 @@ elif page == "ML Model 2":
                 prediction = model.predict(input_df)
                 st.success(f"Prediction: {'Diabetic' if prediction[0] == 1 else 'Not Diabetic'}")
 
-git add Main Code File.py
-git commit -m "Add Streamlit app file"
-git push
