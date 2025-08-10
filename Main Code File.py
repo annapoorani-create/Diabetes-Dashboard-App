@@ -8,7 +8,7 @@ import seaborn as sns
 import numpy as np
 
 # Cleaning up our data
-df = pd.read_csv("diabetes.csv")
+df = pd.read_excel('diabetes.xls')
 df_temp = df.drop(columns=['Outcome','Pregnancies','Insulin','SkinThickness'])
 df_temp = df_temp.replace(0,np.nan)
 df = pd.concat([df['Pregnancies'],df['Insulin'],df['SkinThickness'],df_temp,df['Outcome']],axis=1)
