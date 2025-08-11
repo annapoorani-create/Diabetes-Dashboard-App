@@ -19,7 +19,7 @@ df = df.rename(columns={'BloodPressure': 'Diastolic Blood Pressure','DiabetesPed
 
 # Setting up the sidebar
 st.sidebar.title("Navigation")
-page = st.sidebar.radio("Go to", ["Home", "Data Visualizations", "ML Model 1", "ML Model 2"])
+page = st.sidebar.radio("Go to", ["Home", "Data Visualizations", "ML Model 1", "ML Model 2","Neural Net"])
 
 # Homepage
 if page == "Home":
@@ -203,3 +203,202 @@ elif page == "ML Model 2":
                 prediction = model.predict(input_df)
                 st.success(f"Prediction: {'Diabetic' if prediction[0] == 1 else 'Not Diabetic'}")
 
+if page == "Neural Net":
+    # Some Imports
+    import torch
+    import torch.nn.functional as F
+    import matplotlib.pyplot as plt
+    %matplotlib inline
+
+    # More Imports
+    import numpy as np
+    import pandas as pd
+
+    # Read the CSV
+    df = pd.read_csv('diabetes (1).csv')
+    df.head()
+
+    # Scale all the data
+    from sklearn.preprocessing import StandardScaler
+    import pandas as pd
+    
+    # Load your data
+    df = pd.read_csv('diabetes (1).csv')
+    
+    # Suppose the last column is the target, so separate features and target
+    X = df.iloc[:, :-1]   # all columns except last
+    y = df.iloc[:, -1]    # last column
+    
+    # Initialize scaler
+    scaler = StandardScaler()
+    
+    # Fit on features and transform
+    X_scaled = scaler.fit_transform(X)
+    
+    # Convert back to DataFrame if you want
+    X_scaled_df = pd.DataFrame(X_scaled, columns=X.columns)
+    
+    # Full Scaled Dataframe
+    full_scaled_df = pd.concat([X_scaled_df,df['Outcome']],axis=1)
+    list_of_lists = full_scaled_df.values.tolist()
+    full_scaled_df.head()
+    
+    # The scaling variables
+    my_mean = scaler.mean_
+    my_scale = scaler.scale_
+
+    # Build the dataset
+    def build_dataset(big_list):  
+      X, y = [], []
+      for w in big_list:
+    
+          X.append(w[0:8])
+          y.append(w[8])
+          
+      X = torch.tensor(X)
+      y = torch.tensor(y)
+      print(X.shape, y.shape)
+      return X, y
+        
+    # Split the datasets
+    test_size = st.slider("Test set size (%)", 10, 50, 20) / 100
+
+    import random
+    random.seed(42)
+    random.shuffle(list_of_lists)
+    n1 = int(0.3*len(list_of_lists))
+    n2 = int((1-test_size)*len(list_of_lists))
+    
+    Xtr, Ytr = build_dataset(list_of_lists[:n1])
+    Xdev, Ydev = build_dataset(list_of_lists[n1:n2])
+    Xte, Yte = build_dataset(list_of_lists[n2:])
+    Ytr = Ytr.long()
+    Ydev = Ydev.long()
+    Yte = Yte.long()
+
+    # Knobs
+    vector_dimensionality_for_features = 8
+    hidden_layer_dimension = st.slider("Hidden layer dimension", 10, 30, 20)
+    batch_size = st.slider("Batch size for processing", 20, 70, 40)
+    my_lr = st.slider("Learning rate", 0.0001, 0.005, 0.001)
+    number_of_iterations_of_backprop = st.slider("Number of training loops",1000,10000,5000)
+
+    if st.button("Train Model"):
+        # Setting up weights and
+        g = torch.Generator().manual_seed(2147483647)
+        W1 = torch.randn((vector_dimensionality_for_features,hidden_layer_dimension), generator = g, requires_grad = True)
+        with torch.no_grad():
+            W1 *= (2.0 / vector_dimensionality_for_features)**0.5
+        b1 = torch.randn(hidden_layer_dimension, generator = g, requires_grad = True)
+        with torch.no_grad():
+            b1 *= 0.01
+        W2 = torch.randn(hidden_layer_dimension, 2, requires_grad=True)
+        with torch.no_grad():
+            W2 *= (2.0 / hidden_layer_dimension)**0.5
+        b2 = torch.zeros(2, dtype=torch.float32, requires_grad = True)
+        parameters = [W1, b1, W2, b2]
+        
+        # Optimizer and Scheduler
+        optimizer = torch.optim.Adam(parameters, lr=my_lr)
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer,
+            mode='min',          # Because you want to minimize validation loss
+            factor=0.5,          # LR will be multiplied by this factor when triggered
+            patience=5,        # Number of iterations with no improvement before reducing LR
+            # Could make these sliders later
+        )
+
+        for i in range(number_of_iterations_of_backprop):
+            # mini batch construct
+            ix = torch.randint(0,Xtr.shape[0],(batch_size,))
+            emb = Xtr[ix]
+            
+            # forward pass
+            hpreact = emb @ W1 + b1
+            h = torch.nn.functional.leaky_relu(hpreact, negative_slope=0.01)
+            h = torch.nn.functional.dropout(h, p=0.3, training=True)
+            logits = h @ W2 + b2
+            loss = F.cross_entropy(logits, Ytr[ix])
+            
+            # (occasionally) print loss
+            if i%500 == 0:
+                st.write(loss)
+                
+            # backward pass
+            for p in parameters:
+                p.grad = None
+            # backward pass + update
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            
+            # Loss for dev set
+            if i%500 == 0:
+                emb_for_dev = Xdev
+                hpreact_for_dev = emb_for_dev @ W1 + b1
+                h_for_dev = torch.nn.functional.leaky_relu(hpreact_for_dev, negative_slope=0.01)
+                logits_for_dev = h_for_dev @ W2 + b2
+                loss_for_dev = F.cross_entropy(logits_for_dev, Ydev)
+                st.write('loss for dev is ',loss_for_dev)
+                scheduler.step(loss_for_dev)
+        
+        st.write(loss)
+
+        # Metrics
+        def find_loss_model(sampleX,sampleY):
+            # Loss for test and val sets
+            emb_for_sample = sampleX
+            #forward pass
+            hpreact_for_sample = emb_for_sample @ W1 + b1
+            h_for_sample = torch.nn.functional.leaky_relu(hpreact_for_sample, negative_slope=0.01)
+            logits_for_sample = h_for_sample @ W2 + b2
+            loss_for_sample = F.cross_entropy(logits_for_sample, sampleY)
+            return logits_for_sample
+
+        with torch.no_grad():
+            logits_dev = find_loss_model(Xdev,Ydev)
+            preds = torch.argmax(logits_dev, dim=1)
+            acc = (preds == Ydev).float().mean()
+            st.write(f'Dev accuracy: {acc.item()*100:.2f}%')
+
+        def model(sampleX):
+            emb_for_sample = sampleX
+            #forward pass
+            hpreact_for_sample = emb_for_sample @ W1 + b1
+            h_for_sample = torch.nn.functional.leaky_relu(hpreact_for_sample, negative_slope=0.01)
+            logits_for_sample = h_for_sample @ W2 + b2
+            return logits_for_sample
+        
+        # Save model
+        st.session_state['model'] = model
+
+    # Show form for prediction if model exists
+    if 'model' in st.session_state:
+        st.subheader("Make a Prediction")
+
+        # Reload model
+        model = st.session_state['model']
+
+        # Allow user to input data
+        with st.form("prediction_form"):
+            feature_dict = {}
+            for feature in df.columns:
+                if feature == "Outcome":
+                    continue
+                feature_dict[feature] = st.number_input(f"Enter your {feature}:", value=0.0)
+                
+            submitted = st.form_submit_button("Predict!")
+
+            # Make a prediction
+            if submitted:
+                input_df = pd.DataFrame([feature_dict])
+                x_row_scaled = (input_df - my_mean) / my_scale
+                x_row_scaled = torch.tensor(x_row_scaled.values, dtype=torch.float32)
+                logits = model(torch.tensor(x_row_scaled.values, dtype=torch.float32))
+                pred_class = torch.argmax(logits, dim=1).item()
+                st.success(f"Prediction: {'Diabetic' if pred_class == 1 else 'Not Diabetic'}")
+
+        
+        
+        
+        
