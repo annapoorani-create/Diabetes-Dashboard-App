@@ -2,5 +2,6 @@ matplotlib
 pandas
 streamlit
 numpy
+torch
 seaborn
 scikit-learn
