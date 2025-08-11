@@ -393,7 +393,6 @@ if page == "Neural Net":
             if submitted:
                 input_df = pd.DataFrame([feature_dict])
                 x_row_scaled = (input_df - my_mean) / my_scale
-                x_row_scaled = torch.tensor(x_row_scaled.values, dtype=torch.float32)
                 logits = model(torch.tensor(x_row_scaled.values, dtype=torch.float32))
                 pred_class = torch.argmax(logits, dim=1).item()
                 st.success(f"Prediction: {'Diabetic' if pred_class == 1 else 'Not Diabetic'}")
