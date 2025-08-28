@@ -162,10 +162,10 @@ elif page == "ML Model 2":
 
         X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=test_size, random_state=0)
 
-        model = DecisionTreeClassifier()
-        model.fit(X_train, y_train)
+        model1 = DecisionTreeClassifier()
+        model1.fit(X_train, y_train)
 
-        preds = model.predict(X_test)
+        preds = model1.predict(X_test)
         acc = accuracy_score(y_test, preds)
         cm = confusion_matrix(y_test, preds)
 
@@ -179,15 +179,15 @@ elif page == "ML Model 2":
             row indicates all the model's true predictions, so the bottom left square indicates how many negative cases were assigned 'positive' by the model.""")
             
         # Save model
-        st.session_state['model'] = model
+        st.session_state['model1'] = model1
         st.session_state['features'] = features
 
     # Show form for prediction if model exists
-    if 'model' in st.session_state and 'features' in st.session_state:
+    if 'model1' in st.session_state and 'features' in st.session_state:
         st.subheader("Make a Prediction")
 
         # Reload model
-        model = st.session_state['model']
+        model1 = st.session_state['model1']
         features = st.session_state['features']
 
         # Allow user to input data
@@ -361,7 +361,7 @@ if page == "Neural Net":
             acc = (preds == Ydev).float().mean()
             st.write(f'Dev accuracy: {acc.item()*100:.2f}%')
 
-        def model(sampleX):
+        def model2(sampleX):
             emb_for_sample = sampleX
             #forward pass
             hpreact_for_sample = emb_for_sample @ W1 + b1
@@ -370,14 +370,14 @@ if page == "Neural Net":
             return logits_for_sample
         
         # Save model
-        st.session_state['model'] = model
+        st.session_state['model2'] = model2
 
     # Show form for prediction if model exists
-    if 'model' in st.session_state:
+    if 'model2' in st.session_state:
         st.subheader("Make a Prediction")
 
         # Reload model
-        model = st.session_state['model']
+        model2 = st.session_state['model2']
 
         # Allow user to input data
         with st.form("prediction_form"):
@@ -393,7 +393,7 @@ if page == "Neural Net":
             if submitted:
                 input_df = pd.DataFrame([feature_dict])
                 x_row_scaled = (input_df - my_mean) / my_scale
-                logits = model(torch.tensor(x_row_scaled.values, dtype=torch.float32))
+                logits = model2(torch.tensor(x_row_scaled.values, dtype=torch.float32))
                 pred_class = torch.argmax(logits, dim=1).item()
                 st.success(f"Prediction: {'Diabetic' if pred_class == 1 else 'Not Diabetic'}")
 
