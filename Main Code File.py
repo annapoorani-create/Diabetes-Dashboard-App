@@ -200,7 +200,7 @@ elif page == "ML Model 2":
             # Make a prediction
             if submitted:
                 input_df = pd.DataFrame([feature_dict])
-                prediction = model.predict(input_df)
+                prediction = model1.predict(input_df)
                 st.success(f"Prediction: {'Diabetic' if prediction[0] == 1 else 'Not Diabetic'}")
 
 if page == "Neural Net":
